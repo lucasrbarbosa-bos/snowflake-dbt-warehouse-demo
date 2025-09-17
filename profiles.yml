@@ -1,0 +1,20 @@
+jaffle_shop:               # <-- must match dbt_project.yml: profile: jaffle_shop
+  target: dev
+  outputs:
+    dev:
+      type: snowflake
+      # Credentials are not needed in a Snowflake Workspace run.
+      # dbt will use your Snowflake session. Just define *where* to build:
+      role: SYSADMIN             # e.g. TRANSFORMER_DEV
+      warehouse: COMPUTE_WH                   # e.g. WH_DEV
+      database: analytics_dev
+      schema: jaffle_shop_dev
+      threads: 4
+
+    prod:
+      type: snowflake
+      role: SYSADMIN            # e.g. TRANSFORMER_PROD
+      warehouse: COMPUTE_WH                  # e.g. WH_PROD
+      database: analytics_prod
+      schema: jaffle_shop
+      threads: 8
