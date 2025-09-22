@@ -6,7 +6,7 @@ jaffle_shop:               # <-- must match dbt_project.yml: profile: jaffle_sho
       account: 'not needed'
       user: 'not needed'
       role: SYSADMIN             # e.g. TRANSFORMER_DEV
-      warehouse: COMPUTE_WH                   # e.g. WH_DEV
+      warehouse: ANALYST_WH_DEV                   # e.g. WH_DEV
       database: analytics_dev
       schema: jaffle_shop_dev
       threads: 4
@@ -16,7 +16,7 @@ jaffle_shop:               # <-- must match dbt_project.yml: profile: jaffle_sho
       account: 'not needed'
       user: 'not needed'
       role: SYSADMIN            # e.g. TRANSFORMER_PROD
-      warehouse: COMPUTE_WH                  # e.g. WH_PROD
+      warehouse: ANALYST_WH_DEV                  # e.g. WH_PROD
       database: analytics_prod
       schema: jaffle_shop
       threads: 8
