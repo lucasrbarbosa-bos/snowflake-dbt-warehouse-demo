@@ -12,26 +12,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Python + dbt + Snowflake CLI
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt + Snowflake CLI
         run: |
           python -m pip install --upgrade pip
           pip install "dbt-snowflake==1.9.*"
-          pip install "snowflake-cli-labs==3.9.*"
+          # Snowflake CLI 3.9.0+ required for `snow dbt` commands
+          pip install "snowflake-cli-labs>=3.9.0"
 
-      # (Optional) set SNOWFLAKE_ envs for profiles.yml templating
-      - name: dbt deps (Hub/local only)
+      # -------- DBT (local) ----------
+      # Make sure profiles.yml exists at repo root; no creds needed for deps/compile.
+      - name: dbt deps
         run: dbt deps
 
-      - name: dbt build smoke
-        run: dbt build --select state:modified+ --defer --state target
+      - name: dbt compile (sanity)
+        run: dbt compile
 
-      - name: Deploy to Snowflake dbt project object
+      # -------- DEPLOY ---------------
+      # Deploys a DBT PROJECT object at dbt_projects.dev.jaffle_shop,
+      # uploading files from the repo (incl. dbt_packages from the deps step).
+      - name: Deploy DBT PROJECT (DEV)
         env:
-          SNOWFLAKE_ACCOUNT: ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          SNOWFLAKE_USER:    ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PASSWORD: ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ROLE:    SYSADMIN
-          SNOWFLAKE_WAREHOUSE: ANALYST_WH_DEV
+          SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
+          SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
+          SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
+          SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE_DEV }}      # e.g., SYSADMIN or a runner role
+          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE_DEV }} # e.g., WH_DEV
         run: |
-          # Creates/updates the dbt project object by uploading local files
-          snow dbt deploy dbt_projects.dev.jaffle_shop_test --project-dir . --profiles-dir .
+          snow dbt deploy dbt_projects.dev.jaffle_shop_test \
+            --source . \
+            --profiles-dir . \
+            --database dbt_projects \
+            --schema dev \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse "$SNOWFLAKE_WAREHOUSE" \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --password "$SNOWFLAKE_PASSWORD"
