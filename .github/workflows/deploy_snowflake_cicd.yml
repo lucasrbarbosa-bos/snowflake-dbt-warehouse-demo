@@ -40,8 +40,8 @@ jobs:
           SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
           SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
           SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ROLE:      ${{ secrets.SNOWFLAKE_ROLE_DEV }}      # e.g., SYSADMIN or a runner role
-          SNOWFLAKE_WAREHOUSE: ${{ secrets.SNOWFLAKE_WAREHOUSE_DEV }} # e.g., WH_DEV
+          SNOWFLAKE_ROLE:      SYSADMIN     # e.g., SYSADMIN or a runner role
+          SNOWFLAKE_WAREHOUSE: ANALYST_WH_DEV # e.g., WH_DEV
         run: |
           snow dbt deploy dbt_projects.dev.jaffle_shop_test \
             --source . \
