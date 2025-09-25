@@ -52,4 +52,4 @@ jobs:
             --warehouse "$SNOWFLAKE_WAREHOUSE" \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
-            --password "$SNOWFLAKE_PASSWORD"
+            -x
