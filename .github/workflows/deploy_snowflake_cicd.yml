@@ -69,7 +69,7 @@ jobs:
         run: |
           snow dbt deploy dbt_projects.dev.jaffle_shop_test \
             --source . \
-            --profiles-dir "$DBT_PROFILES_DIR" \
+            --profiles-dir . \
             --database dbt_projects \
             --schema dev \
             --role "$SNOWFLAKE_ROLE" \
@@ -86,7 +86,7 @@ jobs:
         run: |
           snow dbt deploy dbt_projects.prod.jaffle_shop_test \
             --source . \
-            --profiles-dir "$DBT_PROFILES_DIR" \
+            --profiles-dir . \
             --database dbt_projects \
             --schema prod \
             --role "$SNOWFLAKE_ROLE" \
