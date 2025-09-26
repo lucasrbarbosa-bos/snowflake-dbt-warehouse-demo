@@ -1,14 +1,26 @@
 name: ci-deploy-dbt-project
+
 on:
   pull_request:
     branches: [ main ]
-
   push:
     branches: [ main ]
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
+    env:
+      # Point dbt to the CI-only profiles.yml
+      DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
+
+      # Secrets used by the CI profile + CLI flags
+      SNOWFLAKE_ACCOUNT:       ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER:          ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_PASSWORD:      ${{ secrets.SNOWFLAKE_PASSWORD }}
+      SNOWFLAKE_ROLE_DEV:      ${{ secrets.SNOWFLAKE_ROLE_DEV }}
+      SNOWFLAKE_ROLE_PROD:     ${{ secrets.SNOWFLAKE_ROLE_PROD }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -17,39 +29,52 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dbt + Snowflake CLI
+      - name: Install dbt + Snowflake CLI (compatible)
         run: |
           python -m pip install --upgrade pip
-          pip install "dbt-snowflake==1.9.*"
-          # Snowflake CLI 3.9.0+ required for `snow dbt` commands
-          pip install "snowflake-cli-labs>=3.9.0"
+          pip install "dbt-snowflake==1.10.*"
+          pip install "snowflake-cli-labs>=3.11.0"
+          dbt --version
+          snow --version
 
-      # -------- DBT (local) ----------
-      # Make sure profiles.yml exists at repo root; no creds needed for deps/compile.
+      # Make dbt see cicd_profiles.yml as profiles.yml
+      - name: Prepare CI profile
+        run: |
+          cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
+
       - name: dbt deps
         run: dbt deps
 
-      # - name: dbt compile (sanity)
-      #   run: dbt compile
+      # ---------- PR: compile + DEV deploy ----------
+      - name: dbt compile (PR -> DEV)
+        if: github.event_name == 'pull_request'
+        run: dbt compile --target dev
 
-      # -------- DEPLOY ---------------
-      # Deploys a DBT PROJECT object at dbt_projects.dev.jaffle_shop,
-      # uploading files from the repo (incl. dbt_packages from the deps step).
       - name: Deploy DBT PROJECT (DEV)
-        env:
-          SNOWFLAKE_ACCOUNT:   ${{ secrets.SNOWFLAKE_ACCOUNT }}
-          SNOWFLAKE_USER:      ${{ secrets.SNOWFLAKE_USER }}
-          SNOWFLAKE_PASSWORD:  ${{ secrets.SNOWFLAKE_PASSWORD }}
-          SNOWFLAKE_ROLE:      SYSADMIN     # e.g., SYSADMIN or a runner role
-          SNOWFLAKE_WAREHOUSE: ANALYST_WH_DEV # e.g., WH_DEV
+        if: github.event_name == 'pull_request'
         run: |
-          snow dbt deploy dbt_projects.dev.jaffle_shop_test \
+          snow dbt deploy dbt_projects.dev.jaffle_shop \
             --source . \
-            --profiles-dir . \
+            --profiles-dir "$DBT_PROFILES_DIR" \
             --database dbt_projects \
             --schema dev \
-            --role "$SNOWFLAKE_ROLE" \
-            --warehouse "$SNOWFLAKE_WAREHOUSE" \
+            --role "$SNOWFLAKE_ROLE_DEV" \
+            --warehouse ANALYST_WH_DEV \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            -x
+
+      # ---------- MAIN: PROD deploy on merge ----------
+      - name: Deploy DBT PROJECT (PROD)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          snow dbt deploy dbt_projects.prod.jaffle_shop \
+            --source . \
+            --profiles-dir "$DBT_PROFILES_DIR" \
+            --database dbt_projects \
+            --schema prod \
+            --role "$SNOWFLAKE_ROLE_PROD" \
+            --warehouse ANALYST_WH_PROD \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
             -x
