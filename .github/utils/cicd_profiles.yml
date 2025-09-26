@@ -1,21 +1,23 @@
-jaffle_shop:
+jaffle_shop:            # must match dbt_project.yml's "profile:"
   target: dev
   outputs:
     dev:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
-      role: SYSADMIN
+      private_key_path: "{{ env_var('SNOW_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('PRIVATE_KEY_PASSPHRASE', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       database: dbt_projects
       schema: dev
-      warehouse: ANALYST_WH_DEV     # hardcoded per your request
+      warehouse: ANALYST_WH_DEV
     prod:
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_USER') }}"
-      password: "{{ env_var('SNOWFLAKE_PASSWORD') }}"
-      role: SYSADMIN
+      private_key_path: "{{ env_var('SNOW_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('PRIVATE_KEY_PASSPHRASE', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       database: dbt_projects
       schema: prod
-      warehouse: ANALYST_WH_PROD    # hardcoded per your request
+      warehouse: ANALYST_WH_PROD

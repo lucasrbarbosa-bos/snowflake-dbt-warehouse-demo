@@ -14,13 +14,10 @@ jobs:
       # Point dbt to the CI-only profiles.yml
       DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
 
-      # Secrets used by the CI profile + CLI flags
-      SNOWFLAKE_ACCOUNT:       ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER:          ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_PASSWORD:      ${{ secrets.SNOWFLAKE_PASSWORD }}
-      SNOWFLAKE_ROLE:          SYSADMIN     # e.g., SYSADMIN or a runner role
-      # SNOWFLAKE_ROLE_DEV:      ${{ secrets.SNOWFLAKE_ROLE_DEV }}
-      # SNOWFLAKE_ROLE_PROD:     ${{ secrets.SNOWFLAKE_ROLE_PROD }}
+      SNOWFLAKE_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER:     ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE:     SYSADMIN
+      SNOW_KEY_PATH:      ${{ runner.temp }}/sf_key.p8
 
     steps:
       - uses: actions/checkout@v4
@@ -38,11 +35,22 @@ jobs:
           dbt --version
           snow --version
 
-      # Make dbt see cicd_profiles.yml as profiles.yml
+      # Make dbt see cicd_profiles.yml as profiles.yml (in the CI profiles dir)
       - name: Prepare CI profile
-        run: |
-          cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
+        run: cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
 
+      # Write the encrypted PEM to a temp file with strict perms
+      - name: Prepare Snowflake private key
+        shell: bash
+        run: |
+          umask 177
+          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$SNOW_KEY_PATH"
+          if [ -n "${{ secrets.PRIVATE_KEY_PASSPHRASE }}" ]; then
+            echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
+          else
+            # Explicitly empty means "no passphrase"
+            echo "PRIVATE_KEY_PASSPHRASE=" >> "$GITHUB_ENV"
+          fi
       - name: dbt deps
         run: dbt deps
 
@@ -56,26 +64,35 @@ jobs:
         run: |
           snow dbt deploy dbt_projects.dev.jaffle_shop_test \
             --source . \
-            --profiles-dir . \
+            --profiles-dir "$DBT_PROFILES_DIR" \
             --database dbt_projects \
             --schema dev \
             --role "$SNOWFLAKE_ROLE" \
             --warehouse ANALYST_WH_DEV \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
+            --authenticator SNOWFLAKE_JWT \
+            --private-key-path "$SNOW_KEY_PATH" \
             -x
 
       # ---------- MAIN: PROD deploy on merge ----------
       - name: Deploy DBT PROJECT (PROD)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          snow dbt deploy dbt_projects.dev.jaffle_shop_test \
+          snow dbt deploy dbt_projects.prod.jaffle_shop_test \
             --source . \
-            --profiles-dir . \
+            --profiles-dir "$DBT_PROFILES_DIR" \
             --database dbt_projects \
-            --schema dev \
+            --schema prod \
             --role "$SNOWFLAKE_ROLE" \
             --warehouse ANALYST_WH_PROD \
             --account "$SNOWFLAKE_ACCOUNT" \
             --user "$SNOWFLAKE_USER" \
+            --authenticator SNOWFLAKE_JWT \
+            --private-key-path "$SNOW_KEY_PATH" \
             -x
+
+      # Optional: tidy up
+      - name: Cleanup key
+        if: always()
+        run: rm -f "$SNOW_KEY_PATH"
