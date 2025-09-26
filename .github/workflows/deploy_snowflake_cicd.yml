@@ -13,12 +13,9 @@ jobs:
     env:
       # Point dbt to the CI-only profiles.yml
       DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
-
       SNOWFLAKE_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER:     ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_ROLE:     SYSADMIN
-      SNOW_KEY_PATH: ${{ runner.temp }}/sf_key.p8
-
 
     steps:
       - uses: actions/checkout@v4
