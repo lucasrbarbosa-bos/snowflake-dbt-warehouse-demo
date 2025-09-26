@@ -37,6 +37,10 @@ jobs:
       - name: Prepare CI profile
         run: cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
 
+      # Make sure profiles.yml exists at repo root; no creds needed for deps/compile.
+      - name: dbt deps
+        run: dbt deps
+
       # Write the encrypted PEM to a temp file with strict perms
       - name: Prepare Snowflake private key
         shell: bash
@@ -54,7 +58,6 @@ jobs:
           else
             echo "PRIVATE_KEY_PASSPHRASE=" >> "$GITHUB_ENV"
           fi
-
 
       # ---------- PR: compile + DEV deploy ----------
       - name: dbt compile (PR -> DEV)
