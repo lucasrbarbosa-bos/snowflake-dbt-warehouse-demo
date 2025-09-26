@@ -17,7 +17,8 @@ jobs:
       SNOWFLAKE_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_USER:     ${{ secrets.SNOWFLAKE_USER }}
       SNOWFLAKE_ROLE:     SYSADMIN
-      SNOW_KEY_PATH:      ${{ runner.temp }}/sf_key.p8
+      SNOW_KEY_PATH: ${{ runner.temp }}/sf_key.p8
+
 
     steps:
       - uses: actions/checkout@v4
@@ -43,16 +44,20 @@ jobs:
       - name: Prepare Snowflake private key
         shell: bash
         run: |
+          # Make key path available to later steps
+          echo "SNOW_KEY_PATH=$RUNNER_TEMP/sf_key.p8" >> "$GITHUB_ENV"
+
+          # Write the PEM with strict perms
           umask 177
-          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$SNOW_KEY_PATH"
+          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$RUNNER_TEMP/sf_key.p8"
+
+          # Passphrase: set only if provided, else explicitly empty
           if [ -n "${{ secrets.PRIVATE_KEY_PASSPHRASE }}" ]; then
             echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
           else
-            # Explicitly empty means "no passphrase"
             echo "PRIVATE_KEY_PASSPHRASE=" >> "$GITHUB_ENV"
           fi
-      - name: dbt deps
-        run: dbt deps
+
 
       # ---------- PR: compile + DEV deploy ----------
       - name: dbt compile (PR -> DEV)
