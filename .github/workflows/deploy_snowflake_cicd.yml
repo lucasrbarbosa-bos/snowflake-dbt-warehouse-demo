@@ -1,0 +1,103 @@
+name: ci-deploy-dbt-project
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      # Point dbt to the CI-only profiles.yml
+      DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
+      SNOWFLAKE_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_USER:     ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE:     SYSADMIN
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt + Snowflake CLI (compatible)
+        run: |
+          python -m pip install --upgrade pip
+          pip install "dbt-snowflake==1.10.*"
+          pip install "snowflake-cli-labs>=3.11.0"
+          dbt --version
+          snow --version
+
+      # Make dbt see cicd_profiles.yml as profiles.yml (in the CI profiles dir)
+      - name: Prepare CI profile
+        run: cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
+
+      # Make sure profiles.yml exists at repo root; no creds needed for deps/compile.
+      - name: dbt deps
+        run: dbt deps
+
+      # Write the encrypted PEM to a temp file with strict perms
+      - name: Prepare Snowflake private key
+        shell: bash
+        run: |
+          # Make key path available to later steps
+          echo "SNOW_KEY_PATH=$RUNNER_TEMP/sf_key.p8" >> "$GITHUB_ENV"
+
+          # Write the PEM with strict perms
+          umask 177
+          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$RUNNER_TEMP/sf_key.p8"
+
+          # Passphrase: set only if provided, else explicitly empty
+          if [ -n "${{ secrets.PRIVATE_KEY_PASSPHRASE }}" ]; then
+            echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
+          else
+            echo "PRIVATE_KEY_PASSPHRASE=" >> "$GITHUB_ENV"
+          fi
+
+      # ---------- PR: compile + DEV deploy ----------
+      - name: dbt compile (PR -> DEV)
+        if: github.event_name == 'pull_request'
+        run: dbt compile --target dev
+
+      - name: Deploy DBT PROJECT (DEV)
+        if: github.event_name == 'pull_request'
+        run: |
+          snow dbt deploy dbt_projects.dev.jaffle_shop_test \
+            --source . \
+            --profiles-dir . \
+            --database dbt_projects \
+            --schema dev \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse ANALYST_WH_DEV \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --authenticator SNOWFLAKE_JWT \
+            --private-key-path "$SNOW_KEY_PATH" \
+            -x
+
+      # ---------- MAIN: PROD deploy on merge ----------
+      - name: Deploy DBT PROJECT (PROD)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          snow dbt deploy dbt_projects.prod.jaffle_shop_test \
+            --source . \
+            --profiles-dir . \
+            --database dbt_projects \
+            --schema prod \
+            --role "$SNOWFLAKE_ROLE" \
+            --warehouse ANALYST_WH_PROD \
+            --account "$SNOWFLAKE_ACCOUNT" \
+            --user "$SNOWFLAKE_USER" \
+            --authenticator SNOWFLAKE_JWT \
+            --private-key-path "$SNOW_KEY_PATH" \
+            -x
+
+      # Optional: tidy up
+      - name: Cleanup key
+        if: always()
+        run: rm -f "$SNOW_KEY_PATH"

@@ -13,3 +13,12 @@ logs/
 
 .ruff_cache
 __pycache__
+
+*.p8
+*.pem
+*.pub
+# comment if you want to ignore public keys too
+
+keys/*
+
+local/*

@@ -1,14 +1,54 @@
+# default_install_hook_types: [pre-commit, pre-push]
+
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.5.0
     hooks:
-      - id: check-yaml
-      - id: end-of-file-fixer
-      - id: trailing-whitespace
-      - id: requirements-txt-fixer
+      - id: check-yaml                 # validate dbt YAML files
+      - id: end-of-file-fixer          # normalize newline at EOF
+      - id: trailing-whitespace        # trim trailing spaces
+      - id: requirements-txt-fixer     # sort/dedupe requirements.txt
+
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.3.4
     hooks:
       - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
+        args: [--fix, --exit-non-zero-on-fix]  # fix & force re-stage if changed
+      - id: ruff-format                        # consistent formatting
+
+  # (Recommended additions for dbt projects)
+  - repo: https://github.com/sqlfluff/sqlfluff
+    rev: 3.0.7
+    hooks:
+      - id: sqlfluff-lint
+        args: [--dialect, snowflake]
+        additional_dependencies:
+          - sqlfluff-templater-dbt~=3.0
+          - dbt-core==1.10.*
+          - dbt-snowflake==1.10.*
+        files: "\\.(sql|yml)$"
+
+  - repo: local
+    hooks:
+      - id: dbt-deps
+        name: dbt deps
+        language: python
+        additional_dependencies:
+          - dbt-snowflake==1.10.*   # pulls dbt-core too
+        entry: python
+        args: ["-m", "dbt.cli.main", "deps"]
+        pass_filenames: false
+        stages: [commit]
+
+      - id: dbt-compile
+        name: dbt compile (pre-push)
+        language: python
+        additional_dependencies:
+          - dbt-snowflake==1.10.*
+        entry: python
+        args: ["-m", "dbt.cli.main", "compile", "--target", "dev"]
+        pass_filenames: false
+        stages: [push]
+        # Make sure dbt reads your local ~/.dbt profile (not the repo one)
+        env:
+          DBT_PROFILES_DIR: ~/.dbt
