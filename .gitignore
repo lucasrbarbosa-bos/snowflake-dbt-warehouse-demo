@@ -14,4 +14,6 @@ logs/
 .ruff_cache
 __pycache__
 
-rsa_key.*
+*.p8
+*.pem
+# *.pub # Remove the comment if you want to ignore public keys too
