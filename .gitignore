@@ -16,4 +16,9 @@ __pycache__
 
 *.p8
 *.pem
-# *.pub # Remove the comment if you want to ignore public keys too
+*.pub
+# comment if you want to ignore public keys too
+
+keys/*
+
+local/*
