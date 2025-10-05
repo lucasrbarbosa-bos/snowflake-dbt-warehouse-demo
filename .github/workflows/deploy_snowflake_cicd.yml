@@ -80,6 +80,25 @@ jobs:
             --private-key-path "$SNOW_KEY_PATH" \
             -x
 
+      # Ensure the Git repository clone in Snowflake points to the latest commit
+      - name: Refresh Snowflake Git repository clone (DEV/PROD)
+        run: |
+          snow sql -q "ALTER GIT REPOSITORY snowflake_dbt_repo FETCH;"
+
+      # Apply evented CUSTOMERS + daily schedule (DEV) via deploy_parametrized.sql from the repo
+      - name: Apply deploy_parametrized (DEV)
+        if: github.event_name == 'pull_request'
+        run: |
+          snow sql -q "EXECUTE IMMEDIATE FROM @snowflake_dbt_repo/branches/main/deploy/deploy_parametrized.sql USING (
+            env=>'DEV',
+            db_name=>'DBT_PROJECTS',
+            dbt_project_object=>'SNOWFLAKE_DBT_WAREHOUSE_DEMO',
+            wh=>'ANALYST_WH_DEV',
+            src_db=>'DBT_PROJECTS',
+            src_schema=>'DEV',
+            daily_cron=>'USING CRON 30 2 * * * America/Sao_Paulo',
+            extra_args=>'' )"
+
       # ---------- MAIN: PROD deploy on merge ----------
       - name: Deploy DBT PROJECT (PROD)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -96,6 +115,20 @@ jobs:
             --authenticator SNOWFLAKE_JWT \
             --private-key-path "$SNOW_KEY_PATH" \
             -x
+
+      # Apply evented CUSTOMERS + daily schedule (PROD)
+      - name: Apply deploy_parametrized (PROD)
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          snow sql -q "EXECUTE IMMEDIATE FROM @snowflake_dbt_repo/branches/main/deploy/deploy_parametrized.sql USING (
+            env=>'PROD',
+            db_name=>'DBT_PROJECTS',
+            dbt_project_object=>'SNOWFLAKE_DBT_WAREHOUSE_DEMO',
+            wh=>'ANALYST_WH_PROD',
+            src_db=>'DBT_PROJECTS',
+            src_schema=>'PROD',
+            daily_cron=>'USING CRON 30 2 * * * America/Sao_Paulo',
+            extra_args=>'' )"
 
       # Optional: tidy up
       - name: Cleanup key
