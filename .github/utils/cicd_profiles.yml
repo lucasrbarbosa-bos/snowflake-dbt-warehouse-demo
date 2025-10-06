@@ -5,8 +5,8 @@ jaffle_shop:            # must match dbt_project.yml's "profile:"
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_USER') }}"
-      private_key_path: "{{ env_var('SNOW_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('PRIVATE_KEY_PASSPHRASE', '') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE', '') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       database: dbt_projects
       schema: dev
@@ -15,8 +15,8 @@ jaffle_shop:            # must match dbt_project.yml's "profile:"
       type: snowflake
       account: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT') }}"
       user: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_USER') }}"
-      private_key_path: "{{ env_var('SNOW_KEY_PATH') }}"
-      private_key_passphrase: "{{ env_var('PRIVATE_KEY_PASSPHRASE', '') }}"
+      private_key_path: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH') }}"
+      private_key_passphrase: "{{ env_var('SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE', '') }}"
       role: "{{ env_var('SNOWFLAKE_ROLE') }}"
       database: dbt_projects
       schema: prod
