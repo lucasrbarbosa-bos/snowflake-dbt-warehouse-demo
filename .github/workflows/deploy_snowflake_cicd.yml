@@ -76,6 +76,18 @@ jobs:
       - name: Fetch Snowflake Git repository clone
         run: snow git fetch "${REPO_NAME}"
 
+      - name: Verify repo path (LIST)
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH_NAME="${{ github.head_ref }}"
+          else
+            BRANCH_NAME="main"
+          fi
+          snow git fetch "${REPO_NAME}"
+          # This must show your SQL files; if empty, the path or branch is wrong.
+          snow sql -q "LIST @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/"
+
       # Execute deploy_parametrized from the PR branch or main
       - name: Deploy (branch-aware from repo)
         shell: bash
@@ -84,7 +96,7 @@ jobs:
             BRANCH_NAME="${{ github.head_ref }}"   # deploy the PR branch
             ENVIRONMENT="DEV"
             WH="ANALYST_WH_DEV"
-            SRC_SCHEMA="GITHUB"
+            SRC_SCHEMA="DEV"
           else
             BRANCH_NAME="main"                     # push to main -> PROD
             ENVIRONMENT="PROD"
