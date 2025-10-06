@@ -108,9 +108,11 @@ jobs:
       - name: Deploy DBT PROJECT (DEV)
         if: github.event_name == 'pull_request'
         run: |
-          snow dbt deploy dbt_projects.dev.jaffle_shop_test \
+          snow dbt deploy jaffle_shop_test \
             --source . \
             --profiles-dir . \
+            --database dbt_projects \
+            --schema dev \
             --role SYSADMIN \
             --warehouse ANALYST_WH_DEV \
             --account "${SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT}" \
