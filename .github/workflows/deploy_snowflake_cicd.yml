@@ -85,6 +85,9 @@ jobs:
             BRANCH_NAME="main"
           fi
           snow git fetch "${REPO_NAME}"
+
+          snow sql -q "ALTER GIT REPOSITORY ${REPO_NAME} FETCH REFS=('refs/heads/${BRANCH_NAME}')"
+          
           # This must show your SQL files; if empty, the path or branch is wrong.
           snow sql -q "LIST @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/"
 
@@ -106,17 +109,17 @@ jobs:
 
           echo "Deploying @${REPO_NAME}/branches/${BRANCH_NAME} to ${ENVIRONMENT}"
 
-          snow git execute "@${REPO_NAME}/branches/${BRANCH_NAME}/deploy/deploy_parametrized.sql" \
-            -D "repo_name='${REPO_NAME}'" \
-            -D "branch='${BRANCH_NAME}'" \
-            -D "env='${ENVIRONMENT}'" \
-            -D "db_name='DBT_PROJECTS'" \
-            -D "dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO'" \
-            -D "wh='${WH}'" \
-            -D "src_db='DBT_PROJECTS'" \
-            -D "src_schema='${SRC_SCHEMA}'" \
-            -D "daily_cron='USING CRON 30 2 * * * America/Sao_Paulo'" \
-            -D "extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest"
+          snow git execute @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/deploy_parametrized.sql \
+            -D repo_name=${REPO_NAME} \
+            -D branch=${BRANCH_NAME} \
+            -D env=${ENVIRONMENT} \
+            -D db_name=DBT_PROJECTS \
+            -D dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO \
+            -D wh=${WH} \
+            -D src_db=DBT_PROJECTS \
+            -D src_schema=${SRC_SCHEMA} \
+            -D daily_cron="USING CRON 30 2 * * * America/Sao_Paulo" \
+            -D extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest
 
       # Keep your dbt project deploys (now with JWT); adjust names as needed
       - name: Deploy DBT PROJECT (DEV)
