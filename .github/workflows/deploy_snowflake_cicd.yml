@@ -119,7 +119,6 @@ jobs:
             --user "${SNOWFLAKE_CONNECTIONS_DEFAULT_USER}" \
             --authenticator SNOWFLAKE_JWT \
             --private-key-path "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}" \
-            ${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE:+--private-key-passphrase "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE}"} \
             -x
 
       - name: Deploy DBT PROJECT (PROD)
