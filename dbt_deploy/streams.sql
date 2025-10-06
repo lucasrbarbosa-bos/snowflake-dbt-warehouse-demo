@@ -32,4 +32,4 @@ IF (EXISTS (SELECT 1 FROM {{db_name}}.{{env}}.STREAM_CUSTOMERS_{{env}}))
 THEN
   CALL {{db_name}}.{{env}}.RUN_DBT_ON_CUSTOMERS_{{ env }}();
 
-ALTER ALERT {{db_name}}.{{env}}.ALERT_DBT_ON_CUSTOMERS_{{ env }} RESUME;
+--ALTER ALERT {{db_name}}.{{env}}.ALERT_DBT_ON_CUSTOMERS_{{ env }} RESUME;
