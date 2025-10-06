@@ -117,7 +117,7 @@ jobs:
             -D src_db=DBT_PROJECTS \
             -D src_schema=${SRC_SCHEMA} \
             -D daily_cron="USING CRON 30 2 * * * America/Sao_Paulo" \
-            -D extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest
+            -D extra_args=
 
       # Keep your dbt project deploys (now with JWT); adjust names as needed
       - name: Deploy DBT PROJECT (DEV)
