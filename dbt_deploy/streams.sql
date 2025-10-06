@@ -4,7 +4,7 @@
 -- OPTIONAL: extra_args  (e.g. " --select state:modified+ --state @some_stage/manifest")
 
 CREATE STREAM IF NOT EXISTS {{db_name}}.{{env}}.STREAM_CUSTOMERS_{{env}}
-  ON TABLE {{src_db}}.RAW.CUSTOMERS;
+  ON TABLE {{src_db}}.RAW.RAW_CUSTOMERS;
 
 CREATE OR REPLACE PROCEDURE {{db_name}}.{{env}}.RUN_DBT_ON_CUSTOMERS_{{ env }}()
 RETURNS STRING
