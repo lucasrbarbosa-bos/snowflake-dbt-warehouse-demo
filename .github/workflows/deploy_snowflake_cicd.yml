@@ -86,8 +86,6 @@ jobs:
           fi
           snow git fetch "${REPO_NAME}"
 
-          snow sql -q "ALTER GIT REPOSITORY ${REPO_NAME} FETCH REFS=('refs/heads/${BRANCH_NAME}')"
-
           # This must show your SQL files; if empty, the path or branch is wrong.
           snow sql -q "LIST @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/"
 
