@@ -84,7 +84,7 @@ jobs:
             BRANCH_NAME="${{ github.head_ref }}"   # deploy the PR branch
             ENVIRONMENT="DEV"
             WH="ANALYST_WH_DEV"
-            SRC_SCHEMA="DEV"
+            SRC_SCHEMA="GITHUB"
           else
             BRANCH_NAME="main"                     # push to main -> PROD
             ENVIRONMENT="PROD"
