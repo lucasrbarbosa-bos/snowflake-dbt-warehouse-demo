@@ -100,7 +100,7 @@ jobs:
             -D "db_name='DBT_PROJECTS'" \
             -D "dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO'" \
             -D "wh='${WH}'" \
-            -D "src_db='DBT_PROJECTS'" \
+            -D "src_db='ANALYTICS_DEV'" \
             -D "src_schema='${SRC_SCHEMA}'" \
             -D "daily_cron='USING CRON 30 2 * * * America/Sao_Paulo'" \
             -D "extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest"
