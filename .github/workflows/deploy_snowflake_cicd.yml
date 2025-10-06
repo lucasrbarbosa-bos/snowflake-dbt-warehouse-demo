@@ -42,7 +42,7 @@ jobs:
       # Install Snowflake CLI and point it to config.toml
       - uses: snowflakedb/snowflake-cli-action@v1.5
         with:
-          cli-version: "3.6.0"
+          cli-version: "3.10.0"
           default-config-file-path: "config.toml"
 
       # Write the private key to disk and export path/passphrase for the CLI
