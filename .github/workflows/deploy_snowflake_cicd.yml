@@ -104,7 +104,7 @@ jobs:
             -D "src_schema='${SRC_SCHEMA}'" \
             -D "daily_cron='USING CRON 30 2 * * * America/Sao_Paulo'" \
             -D "extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest"
-            
+
       - name: Deploy DBT PROJECT (DEV)
         if: github.event_name == 'pull_request'
         run: |
