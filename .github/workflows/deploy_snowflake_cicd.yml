@@ -98,7 +98,7 @@ jobs:
             -D "branch='${BRANCH_NAME}'" \
             -D "env='${ENVIRONMENT}'" \
             -D "db_name='DBT_PROJECTS'" \
-            -D "dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO'" \
+            -D "dbt_project_object='jaffle_shop_test'" \
             -D "wh='${WH}'" \
             -D "src_db='ANALYTICS_DEV'" \
             -D "src_schema='${SRC_SCHEMA}'" \
