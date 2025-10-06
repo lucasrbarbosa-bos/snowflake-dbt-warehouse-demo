@@ -1,21 +1,28 @@
 name: ci-deploy-dbt-project
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
+    types: [ opened, synchronize ]
+  workflow_dispatch:
 
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
 
     env:
-      # Point dbt to the CI-only profiles.yml
+      # Default connection envs consumed by config.toml
+      SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
+      SNOWFLAKE_CONNECTIONS_DEFAULT_USER:     ${{ secrets.SNOWFLAKE_USER }}
+
+      # Your Snowflake Git repository object (fully-qualified recommended)
+      # Example: DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO
+      REPO_NAME: "DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO"
+
+      # dbt ENV (unchanged from before)
       DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
-      SNOWFLAKE_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
-      SNOWFLAKE_USER:     ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_ROLE:     SYSADMIN
 
     steps:
       - uses: actions/checkout@v4
@@ -25,45 +32,80 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install dbt + Snowflake CLI (compatible)
+      - name: Install dbt (local compile only)
         run: |
           python -m pip install --upgrade pip
           pip install "dbt-snowflake==1.10.*"
-          pip install "snowflake-cli-labs>=3.11.0"
           dbt --version
-          snow --version
 
-      # Make dbt see cicd_profiles.yml as profiles.yml (in the CI profiles dir)
+      # Install Snowflake CLI and point it to config.toml
+      - uses: snowflakedb/snowflake-cli-action@v1.5
+        with:
+          cli-version: "3.6.0"
+          default-config-file-path: "config.toml"
+
+      # Write the private key to disk and export path/passphrase for the CLI
+      - name: Prepare Snowflake private key (for JWT)
+        shell: bash
+        run: |
+          # Persist PEM to a temp path with strict perms
+          umask 177
+          KEY_PATH="$RUNNER_TEMP/sf_key.p8"
+          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$KEY_PATH"
+
+          # Export the variables read by config.toml
+          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
+          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
+
+      - name: Test Snowflake connection (default via JWT)
+        run: snow connection test --connection default
+
+      # Optional dbt steps (kept as-is)
       - name: Prepare CI profile
         run: cp .github/utils/cicd_profiles.yml .github/utils/profiles.yml
 
-      # Make sure profiles.yml exists at repo root; no creds needed for deps/compile.
       - name: dbt deps
         run: dbt deps
 
-      # Write the encrypted PEM to a temp file with strict perms
-      - name: Prepare Snowflake private key
-        shell: bash
-        run: |
-          # Make key path available to later steps
-          echo "SNOW_KEY_PATH=$RUNNER_TEMP/sf_key.p8" >> "$GITHUB_ENV"
-
-          # Write the PEM with strict perms
-          umask 177
-          printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$RUNNER_TEMP/sf_key.p8"
-
-          # Passphrase: set only if provided, else explicitly empty
-          if [ -n "${{ secrets.PRIVATE_KEY_PASSPHRASE }}" ]; then
-            echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
-          else
-            echo "PRIVATE_KEY_PASSPHRASE=" >> "$GITHUB_ENV"
-          fi
-
-      # ---------- PR: compile + DEV deploy ----------
       - name: dbt compile (PR -> DEV)
         if: github.event_name == 'pull_request'
         run: dbt compile --target dev
 
+      # Always refresh the repo clone in Snowflake before executing
+      - name: Fetch Snowflake Git repository clone
+        run: snow git fetch "${REPO_NAME}"
+
+      # Execute deploy_parametrized from the PR branch or main
+      - name: Deploy (branch-aware from repo)
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BRANCH_NAME="${{ github.head_ref }}"   # deploy the PR branch
+            ENVIRONMENT="DEV"
+            WH="ANALYST_WH_DEV"
+            SRC_SCHEMA="DEV"
+          else
+            BRANCH_NAME="main"                     # push to main -> PROD
+            ENVIRONMENT="PROD"
+            WH="ANALYST_WH_PROD"
+            SRC_SCHEMA="PROD"
+          fi
+
+          echo "Deploying @${REPO_NAME}/branches/${BRANCH_NAME} to ${ENVIRONMENT}"
+
+          snow git execute "@${REPO_NAME}/branches/${BRANCH_NAME}/deploy/deploy_parametrized.sql" \
+            -D "repo_name='${REPO_NAME}'" \
+            -D "branch='${BRANCH_NAME}'" \
+            -D "env='${ENVIRONMENT}'" \
+            -D "db_name='DBT_PROJECTS'" \
+            -D "dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO'" \
+            -D "wh='${WH}'" \
+            -D "src_db='DBT_PROJECTS'" \
+            -D "src_schema='${SRC_SCHEMA}'" \
+            -D "daily_cron='USING CRON 30 2 * * * America/Sao_Paulo'" \
+            -D "extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest"
+
+      # Keep your dbt project deploys (now with JWT); adjust names as needed
       - name: Deploy DBT PROJECT (DEV)
         if: github.event_name == 'pull_request'
         run: |
@@ -72,34 +114,15 @@ jobs:
             --profiles-dir . \
             --database dbt_projects \
             --schema dev \
-            --role "$SNOWFLAKE_ROLE" \
+            --role SYSADMIN \
             --warehouse ANALYST_WH_DEV \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
+            --account "${SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT}" \
+            --user "${SNOWFLAKE_CONNECTIONS_DEFAULT_USER}" \
             --authenticator SNOWFLAKE_JWT \
-            --private-key-path "$SNOW_KEY_PATH" \
+            --private-key-path "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}" \
+            ${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE:+--private-key-passphrase "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE}"} \
             -x
 
-      # Ensure the Git repository clone in Snowflake points to the latest commit
-      - name: Refresh Snowflake Git repository clone (DEV/PROD)
-        run: |
-          snow sql -q "ALTER GIT REPOSITORY snowflake_dbt_repo FETCH;"
-
-      # Apply evented CUSTOMERS + daily schedule (DEV) via deploy_parametrized.sql from the repo
-      - name: Apply deploy_parametrized (DEV)
-        if: github.event_name == 'pull_request'
-        run: |
-          snow sql -q "EXECUTE IMMEDIATE FROM @snowflake_dbt_repo/branches/main/deploy/deploy_parametrized.sql USING (
-            env=>'DEV',
-            db_name=>'DBT_PROJECTS',
-            dbt_project_object=>'SNOWFLAKE_DBT_WAREHOUSE_DEMO',
-            wh=>'ANALYST_WH_DEV',
-            src_db=>'DBT_PROJECTS',
-            src_schema=>'DEV',
-            daily_cron=>'USING CRON 30 2 * * * America/Sao_Paulo',
-            extra_args=>'' )"
-
-      # ---------- MAIN: PROD deploy on merge ----------
       - name: Deploy DBT PROJECT (PROD)
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
@@ -108,29 +131,15 @@ jobs:
             --profiles-dir . \
             --database dbt_projects \
             --schema prod \
-            --role "$SNOWFLAKE_ROLE" \
+            --role SYSADMIN \
             --warehouse ANALYST_WH_PROD \
-            --account "$SNOWFLAKE_ACCOUNT" \
-            --user "$SNOWFLAKE_USER" \
+            --account "${SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT}" \
+            --user "${SNOWFLAKE_CONNECTIONS_DEFAULT_USER}" \
             --authenticator SNOWFLAKE_JWT \
-            --private-key-path "$SNOW_KEY_PATH" \
+            --private-key-path "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}" \
+            ${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE:+--private-key-passphrase "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE}"} \
             -x
 
-      # Apply evented CUSTOMERS + daily schedule (PROD)
-      - name: Apply deploy_parametrized (PROD)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        run: |
-          snow sql -q "EXECUTE IMMEDIATE FROM @snowflake_dbt_repo/branches/main/deploy/deploy_parametrized.sql USING (
-            env=>'PROD',
-            db_name=>'DBT_PROJECTS',
-            dbt_project_object=>'SNOWFLAKE_DBT_WAREHOUSE_DEMO',
-            wh=>'ANALYST_WH_PROD',
-            src_db=>'DBT_PROJECTS',
-            src_schema=>'PROD',
-            daily_cron=>'USING CRON 30 2 * * * America/Sao_Paulo',
-            extra_args=>'' )"
-
-      # Optional: tidy up
       - name: Cleanup key
         if: always()
-        run: rm -f "$SNOW_KEY_PATH"
+        run: rm -f "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}"
