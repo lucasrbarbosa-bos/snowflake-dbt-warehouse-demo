@@ -4,7 +4,7 @@
 -- env, db_name, dbt_project_object, wh, src_db, src_schema, daily_cron
 -- Optional: extra_args
 
-EXECUTE IMMEDIATE FROM @{{ repo_name }}/branches/{{ branch }}/deploy/streams.sql
+EXECUTE IMMEDIATE FROM 'deploy/streams.sql'
   USING (
     env                => '{{ env }}',
     db_name            => '{{ db_name }}',

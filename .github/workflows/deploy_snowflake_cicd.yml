@@ -76,33 +76,16 @@ jobs:
       - name: Fetch Snowflake Git repository clone
         run: snow git fetch "${REPO_NAME}"
 
-      # 1) Make sure the branch is fetched and the files are there
-      - name: Verify repo path (LIST)
-        shell: bash
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BRANCH_NAME="${{ github.head_ref }}"
-          else
-            BRANCH_NAME="main"
-          fi
-
-          # Ensure the specific branch ref is present
-          snow sql -q "ALTER GIT REPOSITORY ${REPO_NAME} FETCH REFS=('refs/heads/${BRANCH_NAME}')"
-
-          echo "Listing @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/"
-          snow sql -q "LIST @${REPO_NAME}/branches/${BRANCH_NAME}/deploy/"
-
       # 2) Execute deploy_parametrized.sql from the repo (IMPORTANT: pass raw -D values)
       - name: Deploy (branch-aware from repo)
-        shell: bash
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BRANCH_NAME="${{ github.head_ref }}"
+            BRANCH_NAME="${{ github.head_ref }}"   # deploy the PR branch
             ENVIRONMENT="DEV"
             WH="ANALYST_WH_DEV"
             SRC_SCHEMA="DEV"
           else
-            BRANCH_NAME="main"
+            BRANCH_NAME="main"                     # push to main -> PROD
             ENVIRONMENT="PROD"
             WH="ANALYST_WH_PROD"
             SRC_SCHEMA="PROD"
@@ -110,20 +93,18 @@ jobs:
 
           echo "Deploying @${REPO_NAME}/branches/${BRANCH_NAME} to ${ENVIRONMENT}"
 
-          # IMPORTANT: these -D values are raw (no inner quotes) because they feed into identifiers in @<repo>/branches/<branch>/...
-          snow git execute @${REPO_NAME}/branches/${BRANCH_NAME}/deploy_parametrized.sql \
-            -D repo_name=${REPO_NAME} \
-            -D branch=${BRANCH_NAME} \
-            -D env=${ENVIRONMENT} \
-            -D db_name=DBT_PROJECTS \
-            -D dbt_project_object=SNOWFLAKE_DBT_WAREHOUSE_DEMO \
-            -D wh=${WH} \
-            -D src_db=DBT_PROJECTS \
-            -D src_schema=${SRC_SCHEMA} \
-            -D daily_cron="USING CRON 30 2 * * * America/Sao_Paulo" \
-            -D extra_args=
-
-      # Keep your dbt project deploys (now with JWT); adjust names as needed
+          snow git execute "@${REPO_NAME}/branches/${BRANCH_NAME}/deploy_parametrized.sql" \
+            -D "repo_name='${REPO_NAME}'" \
+            -D "branch='${BRANCH_NAME}'" \
+            -D "env='${ENVIRONMENT}'" \
+            -D "db_name='DBT_PROJECTS'" \
+            -D "dbt_project_object='SNOWFLAKE_DBT_WAREHOUSE_DEMO'" \
+            -D "wh='${WH}'" \
+            -D "src_db='DBT_PROJECTS'" \
+            -D "src_schema='${SRC_SCHEMA}'" \
+            -D "daily_cron='USING CRON 30 2 * * * America/Sao_Paulo'" \
+            -D "extra_args=''"  # e.g. " --select state:modified+ --state @state/manifest"
+            
       - name: Deploy DBT PROJECT (DEV)
         if: github.event_name == 'pull_request'
         run: |
