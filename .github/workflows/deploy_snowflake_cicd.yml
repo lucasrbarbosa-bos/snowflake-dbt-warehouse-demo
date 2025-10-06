@@ -16,6 +16,7 @@ jobs:
       # Default connection envs consumed by config.toml
       SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_CONNECTIONS_DEFAULT_USER:     ${{ secrets.SNOWFLAKE_USER }}
+      SNOWFLAKE_ROLE:     SYSADMIN
 
       # Your Snowflake Git repository object (fully-qualified recommended)
       # Example: DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO
