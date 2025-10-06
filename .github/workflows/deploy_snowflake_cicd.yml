@@ -20,7 +20,7 @@ jobs:
 
       # Your Snowflake Git repository object (fully-qualified recommended)
       # Example: DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO
-      REPO_NAME: "DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO"
+      REPO_NAME: "DBT_PROJECTS.GITHUB.SNOWFLAKE_DBT_REPO"
 
       # dbt ENV (unchanged from before)
       DBT_PROFILES_DIR: ${{ github.workspace }}/.github/utils
