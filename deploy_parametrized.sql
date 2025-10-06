@@ -1,7 +1,7 @@
 --!jinja
 -- Forwards variables to both repo-hosted scripts.
 
-EXECUTE IMMEDIATE FROM @{{ repo_name }}/branches/{{ branch }}/deploy/streams.sql
+EXECUTE IMMEDIATE FROM 'deploy/streams.sql'
   USING (
     env                => '{{ env }}',
     db_name            => '{{ db_name }}',
@@ -12,7 +12,7 @@ EXECUTE IMMEDIATE FROM @{{ repo_name }}/branches/{{ branch }}/deploy/streams.sql
     extra_args         => '{{ extra_args | default("") }}'
   );
 
-EXECUTE IMMEDIATE FROM @{{ repo_name }}/branches/{{ branch }}/deploy/schedules.sql
+EXECUTE IMMEDIATE FROM 'deploy/schedules.sql'
   USING (
     env                => '{{ env }}',
     db_name            => '{{ db_name }}',

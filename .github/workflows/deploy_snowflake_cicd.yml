@@ -106,7 +106,7 @@ jobs:
 
           echo "Deploying @${REPO_NAME}/branches/${BRANCH_NAME} to ${ENVIRONMENT}"
 
-          snow git execute "@${REPO_NAME}/branches/${BRANCH_NAME}/deploy/deploy_parametrized.sql" \
+          snow git execute "@${REPO_NAME}/branches/${BRANCH_NAME}/deploy_parametrized.sql" \
             -D "repo_name='${REPO_NAME}'" \
             -D "branch='${BRANCH_NAME}'" \
             -D "env='${ENVIRONMENT}'" \
