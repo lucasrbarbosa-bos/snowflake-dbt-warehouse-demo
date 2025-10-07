@@ -15,7 +15,7 @@ $$
 DECLARE v_args STRING;
 BEGIN
   -- base args (you can add more with extra_args)
-  v_args := 'build --select tag:src_customers+ --target {{ env }}{{ extra_args and " " ~ extra_args or "" }}';
+  v_args := 'build --select tag:src_customers+ --target {{ lowerenv }}{{ extra_args and " " ~ extra_args or "" }}';
 
   -- ARGS must be part of the dynamic statement; pass the string as-is to dbt
   EXECUTE IMMEDIATE

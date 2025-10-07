@@ -9,7 +9,7 @@ CREATE OR REPLACE TASK {{ db_name }}.{{ env }}.T_DBT_DAILY_{{ env }}
 AS
   -- Option A: full project build
   EXECUTE DBT PROJECT {{ db_name }}.{{ env }}.{{ dbt_project_object }}
-    ARGS = 'build --target {{ env }}{{ extra_args and " " ~ extra_args or "" }}';
+    ARGS = 'build --target {{ lowerenv }}{{ extra_args and " " ~ extra_args or "" }}';
 
   -- Option B: rely solely on the stream for customers
   -- EXECUTE DBT PROJECT {{ db_name }}.{{ env }}.{{ dbt_project_object }}
