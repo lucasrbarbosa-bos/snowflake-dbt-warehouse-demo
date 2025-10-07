@@ -7,6 +7,7 @@
 EXECUTE IMMEDIATE FROM 'dbt_deploy/streams.sql'
   USING (
     env                => '{{ env }}',
+    lowerenv           => '{{ lowerenv }}',
     db_name            => '{{ db_name }}',
     dbt_project_object => '{{ dbt_project_object }}',
     wh                 => '{{ wh }}',
@@ -18,6 +19,7 @@ EXECUTE IMMEDIATE FROM 'dbt_deploy/streams.sql'
 EXECUTE IMMEDIATE FROM 'dbt_deploy/schedules.sql'
   USING (
     env                => '{{ env }}',
+    lowerenv           => '{{ lowerenv }}',
     db_name            => '{{ db_name }}',
     dbt_project_object => '{{ dbt_project_object }}',
     wh                 => '{{ wh }}',
