@@ -1,0 +1,15 @@
+[connections.default]
+# Pulled from your GitHub Actions env/secrets
+account   = "${SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT}"
+user      = "${SNOWFLAKE_CONNECTIONS_DEFAULT_USER}"
+
+# Session defaults (safe to leave as DEV context; scripts fully-qualify objects)
+role      = "SYSADMIN"
+warehouse = "ANALYST_WH_DEV"
+database  = "DBT_PROJECTS"
+schema    = "DEV"
+
+# --- Key pair auth (JWT) ---
+authenticator           = "SNOWFLAKE_JWT"
+private_key_path        = "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}"
+private_key_passphrase  = "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE}"
