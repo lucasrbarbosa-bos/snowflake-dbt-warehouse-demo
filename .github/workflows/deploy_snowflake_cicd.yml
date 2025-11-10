@@ -63,6 +63,8 @@ jobs:
           {
             echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH=$KEY_PATH"
             echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+            echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+            echo "SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
           } >> "$GITHUB_ENV"
 
       - name: Test Snowflake connection (default via JWT)
