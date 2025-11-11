@@ -26,3 +26,14 @@ EXECUTE IMMEDIATE FROM 'dbt_deploy/schedules.sql'
     daily_cron         => '{{ daily_cron }}',
     extra_args         => '{{ extra_args | default("") }}'
   );
+
+EXECUTE IMMEDIATE FROM 'dbt_deploy/semantic_view_jaffle.sql'
+  USING (
+    env                => '{{ env }}',
+    lowerenv           => '{{ lowerenv }}',
+    db_name            => '{{ db_name }}',
+    dbt_project_object => '{{ dbt_project_object }}',
+    wh                 => '{{ wh }}',
+    daily_cron         => '{{ daily_cron }}',
+    extra_args         => '{{ extra_args | default("") }}'
+  );
