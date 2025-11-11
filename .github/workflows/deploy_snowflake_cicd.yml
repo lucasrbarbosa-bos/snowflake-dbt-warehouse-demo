@@ -13,10 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # Default connection envs consumed by config.toml
+      # Default connection envs consumed by config.toml (and flags below)
       SNOWFLAKE_CONNECTIONS_DEFAULT_ACCOUNT:  ${{ secrets.SNOWFLAKE_ACCOUNT }}
       SNOWFLAKE_CONNECTIONS_DEFAULT_USER:     ${{ secrets.SNOWFLAKE_USER }}
-      SNOWFLAKE_ROLE:     SYSADMIN
+      SNOWFLAKE_ROLE:                         SYSADMIN
+      # Be explicit that we're using JWT
+      SNOWFLAKE_CONNECTIONS_DEFAULT_AUTHENTICATOR: SNOWFLAKE_JWT
 
       # Your Snowflake Git repository object (fully-qualified recommended)
       # Example: DBT_PROJECTS.DEV.SNOWFLAKE_DBT_REPO
@@ -49,14 +51,21 @@ jobs:
       - name: Prepare Snowflake private key (for JWT)
         shell: bash
         run: |
+          # Optional extra masking in case anything ever echos
+          echo "::add-mask::${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+
           # Persist PEM to a temp path with strict perms
           umask 177
           KEY_PATH="$RUNNER_TEMP/sf_key.p8"
           printf '%s' "${{ secrets.SNOWFLAKE_PRIVATE_KEY_PEM }}" > "$KEY_PATH"
 
-          # Export the variables read by config.toml
-          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH=$KEY_PATH" >> "$GITHUB_ENV"
-          echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}" >> "$GITHUB_ENV"
+          # Export vars used by Snowflake CLI connection 'default'
+          {
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH=$KEY_PATH"
+            echo "SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+            echo "PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+            echo "SNOWFLAKE_PRIVATE_KEY_PASSPHRASE=${{ secrets.PRIVATE_KEY_PASSPHRASE }}"
+          } >> "$GITHUB_ENV"
 
       - name: Test Snowflake connection (default via JWT)
         run: snow connection test --connection default
@@ -76,7 +85,7 @@ jobs:
       - name: Fetch Snowflake Git repository clone
         run: snow git fetch "${REPO_NAME}"
 
-      # 2) Execute deploy_parametrized.sql from the repo (IMPORTANT: pass raw -D values)
+      # Execute deploy_parametrized.sql from the repo (pass raw -D values)
       - name: Deploy (branch-aware from repo)
         run: |
           if [ "${{ github.event_name }}" = "pull_request" ]; then
@@ -138,7 +147,6 @@ jobs:
             --user "${SNOWFLAKE_CONNECTIONS_DEFAULT_USER}" \
             --authenticator SNOWFLAKE_JWT \
             --private-key-path "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PATH}" \
-            ${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE:+--private-key-passphrase "${SNOWFLAKE_CONNECTIONS_DEFAULT_PRIVATE_KEY_PASSPHRASE}"} \
             -x
 
       - name: Cleanup key
